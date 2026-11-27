@@ -1,0 +1,3 @@
+# Optional semantic-search layer. Needs a C toolchain on some platforms;
+# without it the app runs fine and vector search returns empty results.
+chromadb>=0.5.5

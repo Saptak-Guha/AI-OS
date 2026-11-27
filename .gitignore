@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.local
+!.env.example
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.log
+frontend/dist/
+backend/.venv/
+.vscode/
+.DS_Store
+backend/data/

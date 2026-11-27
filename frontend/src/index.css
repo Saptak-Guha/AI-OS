@@ -1,0 +1,433 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #030712;
+  color: #e2e8f0;
+}
+
+/* Slow drifting aurora behind everything. Fixed + -1 z so it never blocks clicks. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -25%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 40% at 20% 25%, rgba(99, 102, 241, 0.18), transparent 70%),
+    radial-gradient(35% 35% at 80% 20%, rgba(34, 211, 238, 0.14), transparent 70%),
+    radial-gradient(45% 45% at 60% 85%, rgba(52, 211, 153, 0.10), transparent 70%);
+  animation: aurora 24s ease-in-out infinite alternate;
+}
+
+@keyframes aurora {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(3%, -2%, 0) scale(1.08); }
+  100% { transform: translate3d(-3%, 2%, 0) scale(1.04); }
+}
+
+/* Faint scanning grid ("operating system" texture) plus the readability scrim
+   that sits between the ambient layer and the content, so text is always read
+   against a settled backdrop rather than whatever is drifting past.
+
+   One rule, not two: when this was split the second `body::after` overrode
+   background-image but inherited `background-size: 48px 48px` from the first,
+   which tiled the scrim into 48px squares instead of covering the viewport —
+   so the scrim silently did nothing. Per-layer sizes below keep the grid
+   tiling and the scrim full-bleed. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 40%, rgba(3, 7, 18, 0.12), rgba(3, 7, 18, 0.45));
+  background-size: 48px 48px, 48px 48px, 100% 100%;
+  animation: grid-drift 40s linear infinite;
+}
+
+@keyframes grid-drift {
+  to { background-position: 48px 48px; }
+}
+
+/* The drifting constellation, behind everything on every page. */
+.ambient-layer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.glass {
+  /* Opaque enough to read against a moving background — the backdrop blur
+     alone doesn't stop a bright particle from showing through a paragraph. */
+  background: rgba(13, 20, 38, 0.86);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  backdrop-filter: blur(20px);
+}
+
+.glass-hover {
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.glass-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #818cf8, #38bdf8, #34d399, #818cf8);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift 8s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Placeholder shimmer for anything still loading. */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.06) 25%,
+    rgba(148, 163, 184, 0.16) 37%,
+    rgba(148, 163, 184, 0.06) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* Typing caret for streaming assistant text. */
+.streaming-caret::after {
+  content: '▍';
+  margin-left: 2px;
+  color: #38bdf8;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* Respect the OS setting — no motion means no motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* While Arthur West is listening the whole room reacts: the aurora brightens
+   and speeds up. Set on <body> so every page shares the mood, not just chat. */
+body.listening::before {
+  animation-duration: 9s;
+  filter: saturate(1.5) brightness(1.35);
+}
+
+body.listening::after {
+  opacity: 0.55;
+  animation-duration: 14s;
+}
+
+/* A light travelling around a panel's edge. One conic gradient rotating behind
+   the surface, masked to a 1px rim — no JS, no per-frame work on the main
+   thread. Used on whichever panel currently owns your attention. */
+.live-edge {
+  position: relative;
+}
+
+/* A light travelling the panel's rim — and ONLY the rim.
+   The mask is load-bearing: .glass is 70% opaque, so an unmasked gradient
+   behind it shines straight through the panel and washes out the text under
+   it. Painting border-box minus content-box leaves a 1px ring and nothing
+   over the reading area. */
+.live-edge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--edge-angle, 0deg),
+    transparent 0deg,
+    rgba(56, 189, 248, 0.75) 35deg,
+    rgba(129, 140, 248, 0.95) 65deg,
+    transparent 120deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: edge-spin 6s linear infinite;
+}
+
+/* Registering the angle as a real custom property is what makes it animatable;
+   without this Chrome can only step between the keyframes, not tween them. */
+@property --edge-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes edge-spin {
+  to { --edge-angle: 360deg; }
+}
+
+/* A light sweeping across a surface — for buttons and cards worth noticing. */
+.sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.13) 50%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  animation: sheen 5.5s ease-in-out infinite;
+}
+
+@keyframes sheen {
+  0%, 65% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Slow in-and-out, for anything that should read as alive rather than static. */
+.breathe {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+
+/* The one primary action style. Ten call sites had hand-rolled flat indigo and
+   two had a gradient, so the most important button on each page looked like a
+   different product — and none of them matched the indigo→sky brand used by
+   .gradient-text and .progress-bar. Lift on hover, press down on click, so a
+   click feels answered rather than merely registered. */
+.btn-primary {
+  background-image: linear-gradient(135deg, #6366f1, #38bdf8);
+  background-size: 160% 100%;
+  background-position: 0% 50%;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(56, 189, 248, 0.18);
+  transition: background-position 0.45s ease, box-shadow 0.25s ease,
+    transform 0.12s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-position: 100% 50%;
+  box-shadow: 0 4px 22px rgba(56, 189, 248, 0.38);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 8px rgba(56, 189, 248, 0.25);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  /* Without this the gradient still slides under the cursor and the button
+     looks clickable while it is busy. */
+  background-position: 0% 50%;
+  box-shadow: none;
+}
+
+/* Focus ring that glows instead of jumping. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.6), 0 0 18px rgba(99, 102, 241, 0.25);
+}
+
+.agent-pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(99, 102, 241, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.6); }
+}
+
+.progress-bar {
+  background: linear-gradient(90deg, #6366f1, #38bdf8);
+  transition: width 0.5s ease;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 3px; }
+
+
+/* Command palette: dim the page, float the panel. */
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  padding-top: 18vh;
+  background: rgba(3, 7, 18, 0.6);
+  backdrop-filter: blur(6px);
+}
+
+/* The palette floats over a blurred page, so .glass's 0.86 alpha isn't enough
+   — the cards underneath read straight through the list. Solid here. */
+.palette-panel {
+  background: rgba(11, 17, 32, 0.98);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* One-pass shine across the primary button on hover. Separate from .sheen,
+   which loops forever — this fires only when you're pointing at the button,
+   so a page of buttons doesn't strobe. */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent 58%
+  );
+  transform: translateX(-120%);
+}
+
+.btn-primary:hover:not(:disabled)::after {
+  animation: shine-pass 0.7s ease-out;
+}
+
+@keyframes shine-pass {
+  to { transform: translateX(120%); }
+}
+
+/* Nav items lean toward the cursor. Transform, not margin, so nothing reflows. */
+.nav-link {
+  transition: transform 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+}
+
+.nav-link:hover {
+  transform: translateX(4px);
+}
+
+/* A band of light crossing the page each time the route changes. Keyed on the
+   pathname in Layout, so it plays once per navigation and then the element is
+   gone — no permanent animation burning frames. */
+.route-sweep {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 42%,
+    rgba(56, 189, 248, 0.10) 49%,
+    rgba(129, 140, 248, 0.16) 52%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  animation: route-sweep 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes route-sweep {
+  to { transform: translateX(100%); }
+}
+
+/* --- Whole-OS flourishes, driven by Flourishes.tsx --- */
+
+/* Every glass panel can hold the cursor spotlight. `position: relative` is set
+   here rather than per-panel so the glow anchors to the panel it belongs to;
+   `border-radius: inherit` keeps it inside rounded corners without
+   `overflow: hidden`, which would clip dropdowns and popovers. */
+.glass {
+  position: relative;
+}
+
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  background: radial-gradient(
+    300px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(129, 140, 248, 0.13),
+    transparent 60%
+  );
+}
+
+.glass.lit::before {
+  opacity: 1;
+}
+
+/* A ring where you clicked. Sized from its own centre so it grows outward. */
+.click-ring {
+  position: fixed;
+  z-index: 60;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  pointer-events: none;
+  border: 1.5px solid rgba(129, 140, 248, 0.9);
+  animation: click-ring 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes click-ring {
+  to {
+    width: 58px;
+    height: 58px;
+    margin: -29px 0 0 -29px;
+    border-color: rgba(56, 189, 248, 0);
+  }
+}
